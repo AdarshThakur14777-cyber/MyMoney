@@ -1,0 +1,105 @@
+{% from "_icons.html" import icon %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}My Money{% endblock %} · My Money</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script>
+  (function () {
+    var t = localStorage.getItem('mm-theme');
+    if (!t) t = 'light';
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
+</head>
+<body>
+{% set _logged = current_user() and current_user()['id'] %}
+
+{% if _logged %}
+{% set _c = nav_counts() %}
+<div class="shell">
+  <aside class="sidebar">
+    <a class="brand" href="{{ url_for('dashboard.home') }}">
+      <span class="logo">₹</span><span class="brand-name">My&nbsp;Money</span>
+    </a>
+    <nav class="sidenav" aria-label="Main">
+      <p class="side-section">Overview</p>
+      <a class="slink {{ 'active' if request.endpoint == 'dashboard.home' }}"
+         href="{{ url_for('dashboard.home') }}">{{ icon('dash') }}<span>Dashboard</span></a>
+      <a class="slink {{ 'active' if request.endpoint == 'loans.reminders' }}"
+         href="{{ url_for('loans.reminders') }}">{{ icon('clock') }}<span>Reminders</span>
+        {%- if _c.rem %}<i class="navbadge">{{ _c.rem }}</i>{% endif %}</a>
+      <p class="side-section">Finance</p>
+      <a class="slink {{ 'active' if request.endpoint == 'transactions.list' }}"
+         href="{{ url_for('transactions.list') }}">{{ icon('txn') }}<span>Transactions</span>
+        {%- if _c.txns %}<i class="navbadge soft">{{ _c.txns }}</i>{% endif %}</a>
+      <a class="slink {{ 'active' if request.endpoint == 'transactions.add' }}"
+         href="{{ url_for('transactions.add') }}">{{ icon('plus') }}<span>Add transaction</span></a>
+      <a class="slink {{ 'active' if request.endpoint == 'people.list_people' }}"
+         href="{{ url_for('people.list_people') }}">{{ icon('people') }}<span>People</span></a>
+      <a class="slink {{ 'active' if request.endpoint in ('loans.loans', 'loans.loan_detail', 'loans.add_loan') }}"
+         href="{{ url_for('loans.loans') }}">{{ icon('loans') }}<span>Loans</span></a>
+      <a class="slink {{ 'active' if request.endpoint == 'reports.reports_page' }}"
+         href="{{ url_for('reports.reports_page') }}">{{ icon('reports') }}<span>Reports</span></a>
+      <p class="side-section">Account</p>
+      <a class="slink {{ 'active' if request.endpoint == 'settings.settings_page' }}"
+         href="{{ url_for('settings.settings_page') }}">{{ icon('gear') }}<span>Settings</span></a>
+      <form method="post" action="{{ url_for('auth.logout') }}" class="logoutform">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="slink" type="submit">{{ icon('exit') }}<span>Log out</span></button>
+      </form>
+    </nav>
+    <div class="side-foot">
+      <div class="side-account">
+        <span class="avatar" title="{{ current_user()['username'] }}">
+          {{ current_user()['username'][:1] | upper }}</span>
+        <span class="side-account-copy"><b>{{ current_user()['username'] }}</b><small>Personal workspace</small></span>
+      </div>
+      <button id="theme-toggle" class="iconbtn" type="button"
+              title="Switch light/dark" aria-label="Switch light and dark theme">◐</button>
+    </div>
+  </aside>
+
+  <div class="maincol">
+    <header class="topbar">
+      <h2 class="greet">{% set _h = ist_hour() %}
+        {%- if _h < 5 -%}Good night{%- elif _h < 12 -%}Good morning
+        {%- elif _h < 17 -%}Good afternoon{%- else -%}Good evening{%- endif -%},
+        <b>{{ current_user()['username'] }}</b> <span class="wave">👋</span></h2>
+      <div class="topbar-right">
+        <form class="topsearch" action="{{ url_for('transactions.list') }}" method="get">
+          {{ icon('search') }}
+          <input name="q" value="{{ request.args.get('q', '') }}"
+                 placeholder="Search transactions…" aria-label="Search transactions">
+        </form>
+        <a class="bellbtn" href="{{ url_for('loans.reminders') }}" title="Reminders">
+          {{ icon('bell') }}{% if _c.rem %}<i class="dot"></i>{% endif %}</a>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=false) %}
+      {% if messages %}
+        <div class="flashes" role="status">
+          {% for m in messages %}<div class="flash"><span>{{ m }}</span><button type="button" class="flash-close" aria-label="Dismiss message">×</button></div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <main class="container">
+{% endif %}
+
+{% block content %}{% endblock %}
+
+{% if _logged %}
+    </main>
+    <footer class="foot">My Money · A clearer view of your money</footer>
+  </div>
+</div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block hdr_extras %}{% endblock %}
+</body>
+</html>

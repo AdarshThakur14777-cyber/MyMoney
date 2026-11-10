@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<header class="pagehead"><h1>Settings</h1></header>
+
+<form class="card form" method="post" action="{{ url_for('settings.settings_page') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="op" value="prefs">
+  <h3>Preferences</h3>
+  <div class="grid3">
+    <label>Currency
+      <select name="currency">
+        {% for c in ['INR', 'USD', 'EUR', 'GBP'] %}
+          <option {% if user.currency == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Large-transaction alert (₹)
+      <input name="alert_large" value="{{ (st.alert_large_paise / 100) | round(2) if st and st.alert_large_paise else '10000' }}">
+    </label>
+    <label class="chk"><input type="checkbox" name="include_sample" {% if st and st.include_sample %}checked{% endif %}>
+      include [SAMPLE] rows in totals &amp; lists</label>
+  </div>
+  <div class="form-foot"><div class="spacer"></div>
+    <button class="btn" type="submit" name="stay" value="1">Save preferences</button>
+  </div>
+</form>
+
+<form class="card form" method="post" action="{{ url_for('settings.settings_page') }}" autocomplete="off">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="op" value="account">
+  <input type="hidden" name="stay" value="1">
+  <h3>Personal account</h3>
+  <p class="muted small">Update your sign-in details. Enter your current password to save changes.</p>
+  <div class="grid3">
+    <label>Username
+      <input name="username" value="{{ user.username }}" minlength="3" maxlength="40" required autocomplete="username">
+    </label>
+    <label>Current password
+      <input name="current_password" type="password" required autocomplete="current-password">
+    </label>
+    <label>New password <small>(optional)</small>
+      <input name="new_password" type="password" minlength="8" autocomplete="new-password">
+    </label>
+    <label>Confirm new password
+      <input name="confirm_password" type="password" autocomplete="new-password">
+    </label>
+  </div>
+  <div class="form-foot"><div class="spacer"></div>
+    <button class="btn" type="submit">Update account</button>
+  </div>
+</form>
+
+<form class="card form budget-settings" method="post" action="{{ url_for('settings.settings_page') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="op" value="budgets">
+  <input type="hidden" name="stay" value="1">
+  <h3>Monthly category budgets</h3>
+  <p class="muted small">Set a spending limit for any category. Alerts appear at 80% and when a limit is reached. Leave a field blank to remove its budget.</p>
+  <div class="budget-inputs">
+    {% for c in categories %}
+      {% set limit = budget_limits.get(c.value|lower) %}
+      <label>{{ c.value }}
+        <input name="budget_{{ c.id }}" inputmode="decimal" placeholder="No limit"
+               value="{{ '%.2f' % (limit / 100) if limit else '' }}">
+      </label>
+    {% endfor %}
+  </div>
+  <div class="form-foot"><div class="spacer"></div>
+    <button class="btn" type="submit">Save budgets</button>
+  </div>
+</form>
+
+<div class="two-col">
+  <section class="card">
+    <h3>Categories</h3>
+    <ul class="mini-list chips-list">
+      {% for c in categories %}
+        <li class="chiprow">
+          <span class="tag {{ 'used' if c.value in used_categories else '' }}">{{ c.value }}</span>
+          {% if c.value not in used_categories %}
+            <form class="inline" method="post"
+                  action="{{ url_for('settings.settings_page') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="op" value="del_category">
+              <input type="hidden" name="stay" value="1">
+              <input type="hidden" name="value" value="{{ c.value }}">
+              <button class="btn ghost sm" type="submit">remove</button>
+            </form>
+          {% else %}<span class="muted">in use</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="{{ url_for('settings.settings_page') }}"
+          class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="op" value="add_category">
+      <input type="hidden" name="stay" value="1">
+      <label class="grow">New category
+        <input name="value" placeholder="e.g. Charity" required>
+      </label>
+      <button class="btn sm" type="submit">Add category</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h3>Payment methods</h3>
+    <ul class="mini-list chips-list">
+      {% for m in methods %}
+        <li class="chiprow">
+          <span class="tag">{{ m.value }}</span>
+          <form class="inline" method="post"
+                action="{{ url_for('settings.settings_page') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="op" value="del_method">
+            <input type="hidden" name="stay" value="1">
+            <input type="hidden" name="value" value="{{ m.value }}">
+            <button class="btn ghost sm" type="submit">remove</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="muted small">Removing a method only drops it from the dropdown —
+      past transactions keep their value.</p>
+    <form method="post" action="{{ url_for('settings.settings_page') }}" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="op" value="add_method">
+      <input type="hidden" name="stay" value="1">
+      <label class="grow">New payment method
+        <input name="value" placeholder="e.g. Debit card" required>
+      </label>
+      <button class="btn sm" type="submit">Add method</button>
+    </form>
+  </section>
+</div>
+
+<section class="card danger-zone">
+  <h3>Data</h3>
+  <p>Wipe all transactions, loans, people, and their history from this account
+    ({{ user.username }}). Download a report first if you need a copy.</p>
+  <form method="post" action="{{ url_for('settings.settings_page') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="op" value="reset_sample">
+    <button class="btn danger" type="submit" name="step" value="preview">Wipe my data…</button>
+  </form>
+</section>
+{% endblock %}

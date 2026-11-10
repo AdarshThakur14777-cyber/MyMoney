@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Wipe data{% endblock %}
+{% block content %}
+<header class="pagehead"><h1>Wipe my data — confirmation</h1></header>
+<section class="card danger-zone">
+  <p><b>This deletes every transaction, loan, person and attachment in the
+  account</b> ({{ user.username }}). The audit log goes too. The user account
+  itself stays.</p>
+  <p>Consider downloading a report first:</p>
+  <p><a class="btn ghost" href="{{ url_for('reports.download_csv') }}">CSV</a>
+     <a class="btn ghost" href="{{ url_for('reports.download_xlsx') }}">Excel</a>
+     <a class="btn ghost" href="{{ url_for('reports.download_pdf') }}">PDF</a></p>
+  <form method="post" action="{{ url_for('settings.settings_page') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="op" value="reset_sample">
+    <input type="hidden" name="step" value="confirm">
+    <div class="form-foot">
+      <a class="btn ghost" href="{{ url_for('settings.settings_page') }}">No, keep my data</a>
+      <button class="btn danger" type="submit">Yes — delete everything irreversibly</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

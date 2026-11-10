@@ -1,0 +1,27 @@
+# --- secrets & runtime data (never commit) -------------------------------
+instance/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite*
+
+# uploads (receipts people attach)
+uploads/
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.python-version
+
+# tooling / OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+.idea/
+.vscode/
+.onego/

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}People{% endblock %}
+{% block content %}
+<header class="pagehead">
+  <h1>People register</h1>
+  <a class="btn" href="{{ url_for('people.add_person') }}">+ Add person</a>
+</header>
+
+<form class="filters card" method="get">
+  <label class="grow">Search <input name="q" value="{{ q }}" placeholder="name, phone, UPI"></label>
+  <button class="btn" type="submit">Search</button>
+</form>
+
+<div class="table-scroll"><table class="list">
+  <thead>
+    <tr><th>Name</th><th>Phone</th><th>UPI</th><th>Relationship</th>
+        <th class="r">In (total)</th><th class="r">Out (total)</th>
+        <th class="r">Net</th><th>Last tx</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for p in people %}
+    <tr class="{{ 'dual' if p['both'] else '' }}">
+      <td><a href="{{ url_for('people.person_detail', pid=p.id) }}"
+             class="{{ 'dual' if p['both'] else '' }}">{{ p.name }}</a></td>
+      <td>{{ p.phone or '—' }}</td>
+      <td>{{ p.upi_id or '—' }}</td>
+      <td>{{ p.relationship or '—' }}</td>
+      <td class="r in">{{ money_fmt(p.in_paise, current_user()['currency']) }}</td>
+      <td class="r out">{{ money_fmt(p.out_paise, current_user()['currency']) }}</td>
+      <td class="r">{{ money_fmt(p.out_paise - p.in_paise, current_user()['currency']) }}</td>
+      <td>{{ ist_fmt_date(p.last_date) if p.last_date else '—' }}</td>
+      <td><a class="btn ghost sm" href="{{ url_for('people.person_detail', pid=p.id) }}">Open</a></td>
+    </tr>
+  {% endfor %}
+  {% if not people %}<tr><td colspan="9" class="muted">No people yet.</td></tr>{% endif %}
+  </tbody>
+</table></div>
+<p class="muted small">Blue highlighted names = you both paid <em>and</em> received — same as the Excel row-highlight rule.</p>
+{% endblock %}

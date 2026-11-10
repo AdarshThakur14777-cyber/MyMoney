@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if mode == 'edit' else 'New' }} transaction{% endblock %}
+{% block content %}
+<header class="pagehead"><div><h1>{{ 'Edit transaction' if mode == 'edit' else 'Add transaction' }}</h1><p class="muted small form-intro">{{ 'Update the details below.' if mode == 'edit' else 'Record money in or out. You can add more details later.' }}</p></div>
+{% if mode == 'edit' and txn.status == 'cancelled' %}<div class="pill danger">Cancelled — restore from the transaction page</div>{% endif %}
+</header>
+
+{% if errors %}
+  <div class="card err">{% for e in errors %}<div class="flash err">{{ e }}</div>{% endfor %}</div>
+{% endif %}
+
+{% if dup %}
+  <div class="card dupwarn">
+    <h2>⚠ Possible duplicate</h2>
+    {% if dup.utr %}
+      <p><b>UTR already used by {{ dup.utr | length }} transaction(s):</b></p>
+      <ul class="mini-list">
+        {% for d in dup.utr[:5] %}
+          <li>{{ ist_fmt_date(d.tx_date) }} — {{ NATURES[d.nature][1] }} —
+              {{ money_fmt(d.amount_paise, current_user()['currency']) }}
+              ({{ d.description or 'no description' }})</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if dup.same_day %}
+      <p><b>Same person/date/amount exists:</b></p>
+      <ul class="mini-list">
+        {% for d in dup.same_day[:5] %}
+          <li>{{ ist_fmt_date(d.tx_date) }} — {{ NATURES[d.nature][1] }} —
+              {{ money_fmt(d.amount_paise, current_user()['currency']) }}
+              ({{ d.description or 'no description' }})</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <p>This can be genuine (weekly bill, etc.). Tick “save anyway” to keep both.</p>
+  </div>
+{% endif %}
+
+<form class="card form" method="post"
+      action="{{ url_for(mode == 'edit' and 'transactions.edit' or 'transactions.add',
+                         **({'txn_id': txn.id} if mode == 'edit' else {})) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid3">
+    <label>Nature
+      <select name="nature" id="f-nature" required>
+        {% for k, v in natures.items() %}
+          <option value="{{ k }}" {% if f.get('nature') == k %}selected{% endif %}>{{ v[1] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Amount
+      <input name="amount" value="{{ f.get('amount', '') }}" placeholder="e.g. 1,250.50" inputmode="decimal" autocomplete="off" required>
+    </label>
+    <label>Date
+      <input name="tx_date" type="date" value="{{ f.get('tx_date') or '' }}" required>
+    </label>
+    <label>Time <small>(optional)</small>
+      <input name="tx_time" type="time" value="{{ f.get('tx_time') or '' }}">
+    </label>
+    <label>Person / Merchant
+      <select name="person_id" id="f-person">
+        <option value="">— none —</option>
+        {% for p in people %}
+          <option value="{{ p.id }}" {% if f.get('person_id')|string == p.id|string %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="grow">New person <small>(optional)</small>
+      <input name="new_person" value="{{ f.get('new_person') or '' }}" placeholder="Type a name to add it">
+    </label>
+    <label>Payment method
+      <select name="method">
+        <option value="">—</option>
+        {% for m in methods %}
+          <option {% if f.get('method') == m %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="loan-field">Linked loan
+      <select name="linked_loan_id" id="f-loan" data-requires
+              {% if f.get('nature') and not natures[f.get('nature')][2] %}class="dim"{% endif %}>
+        <option value="">— none —</option>
+        {% for l in loans %}
+          <option value="{{ l.id }}" {% if f.get('linked_loan_id')|string == l.id|string %}selected{% endif %}>
+            loan #{{ l.id }} · {{ l.side }} · {{ money_fmt(l.amount_paise, current_user()['currency']) }} · {{ l.status }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Category
+      <select name="category" id="f-cat" data-subcats='{{ SUBCATS|tojson }}'>
+        <option value="">—</option>
+        {% for c in categories %}
+          <option {% if f.get('category') == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Subcategory
+      <select name="subcategory" id="f-sub">
+        <option value="">—</option>
+        {% set cursub = f.get('subcategory') or '' %}
+        {% set curcat = f.get('category') or '' %}
+        {% if cursub %}<option selected>{{ cursub }}</option>{% endif %}
+        {% for s in SUBCATS.get(curcat, []) if s != cursub %}<option>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="grow">Purpose / description
+      <input name="description" id="f-desc" value="{{ f.get('description') or '' }}" placeholder="What was this for?">
+    </label>
+  </div>
+
+  <details class="form-extras" {% if mode == 'edit' or f.get('utr') or f.get('notes') %}open{% endif %}>
+    <summary>More details <span class="muted small">Reference number and notes</span></summary>
+    <div class="grid3">
+      <label>UTR / reference
+        <input name="utr" value="{{ f.get('utr') or '' }}" placeholder="UPI ref / cheque no.">
+      </label>
+      <label class="grow notes">Notes
+        <textarea name="notes" rows="2">{{ f.get('notes') or '' }}</textarea>
+      </label>
+    </div>
+  </details>
+
+  <div class="form-foot">
+    {% if dup %}
+    <label class="chk"><input type="checkbox" name="force" value="1"> save anyway (acknowledge duplicate warning)</label>
+    {% endif %}
+    {% if mode == 'edit' %}
+      <label class="chk danger"><input type="checkbox" name="cancel" value="1"> cancel this transaction
+        (kept in audit history)</label>
+    {% endif %}
+    <div class="spacer"></div>
+    <a class="btn ghost" href="{{ back or url_for('transactions.list') }}">Discard</a>
+    <button class="btn" type="submit">{{ 'Save changes' if mode == 'edit' else 'Save transaction' }}</button>
+  </div>
+</form>
+
+{% if mode == 'edit' and attachments %}
+  <section class="card">
+    <h3>Attachments</h3>
+    <ul class="mini-list">
+      {% for a in attachments %}
+        <li>
+          {% if a.mime.startswith('image/') %}
+            <a href="{{ url_for('transactions.attach_download', att_id=a.id) }}" target="_blank">
+              <img class="thumb" src="{{ url_for('transactions.attach_download', att_id=a.id) }}"
+                   alt="{{ a.orig_name }}"></a>
+          {% else %}
+            <a href="{{ url_for('transactions.attach_download', att_id=a.id) }}">{{ a.orig_name }}</a>
+          {% endif %}
+          <span class="muted">{{ a.size_bytes }} bytes · {{ a.mime }}</span>
+          <form method="post" class="inline" action="{{ url_for('transactions.attach_delete', att_id=a.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="back" value="{{ request.path }}">
+            <button class="btn ghost sm" type="submit">remove</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+{% if mode == 'edit' %}
+<form class="card form" method="post"
+      action="{{ url_for('transactions.attach', txn_id=txn.id) }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h3>Attach receipt / screenshot</h3>
+  <div class="grid3">
+    <label class="grow">File (png / jpg / webp / pdf, max 6 MB)
+      <input type="file" name="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.gif,.heic">
+    </label>
+  </div>
+  <div class="form-foot"><div class="spacer"></div><button class="btn sm" type="submit">Upload</button></div>
+</form>
+{% endif %}
+{% endblock %}

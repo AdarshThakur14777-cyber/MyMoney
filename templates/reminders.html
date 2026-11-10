@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Reminders{% endblock %}
+{% block content %}
+<header class="pagehead"><h1>Reminders</h1>
+<a class="btn ghost" href="{{ url_for('loans.loans') }}">← Loans</a></header>
+
+<section class="card">
+  <h3>Overdue loans</h3>
+  <div class="table-scroll"><table class="list">
+    <thead><tr><th>Loan</th><th>Person</th><th>Side</th><th>Due date</th>
+      <th class="r">Balance</th><th>Days overdue</th><th></th></tr></thead>
+    <tbody>
+    {% for l in r.overdue %}
+      <tr class="overdue-row">
+        <td>#{{ l.id }}</td><td>{{ l.person_name or '—' }}</td>
+        <td>{{ 'given' if l.side == 'given' else 'taken' }}</td>
+        <td>{{ ist_fmt_date(l.due_date) }}</td>
+        <td class="r">{{ money_fmt(l.balance_paise, currency) }}</td>
+        <td>{{ l.overdue_days }}</td>
+        <td><a class="btn ghost sm" href="{{ url_for('loans.loan_detail', lid=l.id) }}">Open</a></td>
+      </tr>
+    {% endfor %}
+    {% if not r.overdue %}<tr><td colspan="7" class="muted">Nothing overdue. 🎉</td></tr>{% endif %}
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card">
+  <h3>Due within 7 days</h3>
+  <ul class="snap">
+    {% for item in r.due_soon %}
+      <li><a href="{{ url_for('loans.loan_detail', lid=item.loan.id) }}">{{ item.loan.person_name or 'loan' }}</a>
+        — {{ money_fmt(item.loan.balance_paise, currency) }} by {{ ist_fmt_date(item.loan.due_date) }}</li>
+    {% endfor %}
+    {% if not r.due_soon %}<li class="muted">Nothing due in the next week.</li>{% endif %}
+  </ul>
+</section>
+
+<section class="card">
+  <h3 class="rowtitle">Budget alerts <a class="more" href="{{ url_for('settings.settings_page') }}">Manage budgets →</a></h3>
+  {% if r.budget_alerts %}
+  <ul class="budget-alerts">
+    {% for b in r.budget_alerts %}
+    <li class="{{ b.status }}">
+      <b>{{ b.category }}</b>
+      <span>{{ ('Limit reached' if b.pct == 100 else 'Over budget') if b.status == 'over' else 'Near limit' }} · {{ b.spent_txt }} of {{ b.limit_txt }} this month ({{ b.pct }}%)</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted small">No budget alerts this month.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h3>Data hygiene</h3>
+  <ul class="snap">
+    <li class="{{ 'warn' if r.missing_desc else '' }}">{{ r.missing_desc }} expense(s) missing a description</li>
+    <li class="{{ 'warn' if r.dup_utrs else '' }}">{{ r.dup_utrs }} transaction rows share a duplicate UTR</li>
+    <li class="muted small">Reminders are computed when the page is read — nothing to configure.</li>
+  </ul>
+</section>
+{% endblock %}

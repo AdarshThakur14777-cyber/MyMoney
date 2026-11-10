@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Loans{% endblock %}
+{% block content %}
+<header class="pagehead">
+  <h1>Loan register</h1>
+  <a class="btn" href="{{ url_for('loans.add_loan') }}">+ Add loan</a>
+</header>
+
+<section class="pills">
+  <div class="pill {{ 'danger' if reminders.overdue else 'ok' }}">⚠ Overdue loans: <b>{{ reminders.overdue | length }}</b></div>
+  <div class="pill warn">Lent outstanding: <b>{{ money_fmt(given | map(attribute='balance_paise') | sum, currency) }}</b> ·
+    borrowed: <b>{{ money_fmt(taken | map(attribute='balance_paise') | sum, currency) }}</b></div>
+</section>
+
+<section class="card">
+  <h3>A. Money I lent (given)</h3>
+  <div class="table-scroll"><table class="list">
+    <thead><tr><th>Loan</th><th>Person</th><th class="r">Principal</th><th>Disbursed</th>
+      <th>Due</th><th class="r">Repaid</th><th class="r">Outstanding</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for l in given %}
+      <tr class="{{ 'sample' if l.is_sample }}">
+        <td>#{{ l.id }}</td>
+        <td>{{ l.person_name or '—' }}{% if l.is_sample %} <span class="tag">[SAMPLE]</span>{% endif %}</td>
+        <td class="r">{{ money_fmt(l.amount_paise, currency) }}</td>
+        <td>{{ ist_fmt_date(l.disbursed_date) }}</td>
+        <td>{{ ist_fmt_date(l.due_date) if l.due_date else '—' }}</td>
+        <td class="r in">{{ money_fmt(l.repaid_paise, currency) }}</td>
+        <td class="r out">{{ money_fmt(l.balance_paise, currency) }}</td>
+        <td><span class="st st-{{ l.status | lower | replace(' ', '-') }}">{{ l.status }}</span>
+          {% if l.overdue_days %} <span class="muted">({{ l.overdue_days }}d)</span>{% endif %}</td>
+        <td><a class="btn ghost sm" href="{{ url_for('loans.loan_detail', lid=l.id) }}">Open</a></td>
+      </tr>
+    {% endfor %}
+    {% if not given %}<tr><td colspan="9" class="muted">No loans given yet.</td></tr>{% endif %}
+    <tr class="totals"><td colspan="6">Total lent outstanding</td>
+      <td class="r out">{{ money_fmt(given | map(attribute='balance_paise') | sum, currency) }}</td>
+      <td colspan="2"></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card">
+  <h3>B. Money I borrowed (taken)</h3>
+  <div class="table-scroll"><table class="list">
+    <thead><tr><th>Loan</th><th>Person</th><th class="r">Principal</th><th>Taken</th>
+      <th>Settle by</th><th class="r">Repaid</th><th class="r">Outstanding</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for l in taken %}
+      <tr class="{{ 'sample' if l.is_sample }}">
+        <td>#{{ l.id }}</td>
+        <td>{{ l.person_name or '—' }}{% if l.is_sample %} <span class="tag">[SAMPLE]</span>{% endif %}</td>
+        <td class="r">{{ money_fmt(l.amount_paise, currency) }}</td>
+        <td>{{ ist_fmt_date(l.disbursed_date) }}</td>
+        <td>{{ ist_fmt_date(l.due_date) if l.due_date else '—' }}</td>
+        <td class="r out">{{ money_fmt(l.repaid_paise, currency) }}</td>
+        <td class="r">{{ money_fmt(l.balance_paise, currency) }}</td>
+        <td><span class="st st-{{ l.status | lower | replace(' ', '-') }}">{{ l.status }}</span>
+          {% if l.overdue_days %} <span class="muted">({{ l.overdue_days }}d)</span>{% endif %}</td>
+        <td><a class="btn ghost sm" href="{{ url_for('loans.loan_detail', lid=l.id) }}">Open</a></td>
+      </tr>
+    {% endfor %}
+    {% if not taken %}<tr><td colspan="9" class="muted">No loans taken yet.</td></tr>{% endif %}
+    <tr class="totals"><td colspan="6">Total borrowed outstanding</td>
+      <td class="r">{{ money_fmt(taken | map(attribute='balance_paise') | sum, currency) }}</td>
+      <td colspan="2"></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card">
+  <h3>Repayment log (linked repayments only)</h3>
+  <div class="table-scroll"><table class="list">
+    <thead><tr><th>Date</th><th>Person</th><th>Loan</th><th>Nature</th>
+      <th>Method</th><th>UTR</th><th class="r">Amount</th><th></th></tr></thead>
+    <tbody>
+    {% for t in replog %}
+      {% if t.linked_loan_id %}
+      <tr><td>{{ ist_fmt_date(t.tx_date) }}</td>
+          <td>{{ t.person_name or t.loan_person or '—' }}</td>
+          <td><a href="{{ url_for('loans.loan_detail', lid=t.linked_loan_id) }}">#{{ t.linked_loan_id }}</a>
+              <span class="muted">{{ 'given' if t.loan_side == 'given' else 'taken' }}</span></td>
+          <td>{{ NATURES[t.nature][1] }}</td>
+          <td>{{ t.method or '—' }}</td>
+          <td>{{ t.utr or '—' }}</td>
+          <td class="r {{ 'in' if t.direction == 'in' else 'out' }}">{{ (t.direction == 'in') and '+' or '−' }}{{ money_fmt(t.amount_paise, currency) }}</td>
+          <td><a class="btn ghost sm" href="{{ url_for('transactions.txn_detail', txn_id=t.id) }}">Open</a></td></tr>
+      {% endif %}
+    {% endfor %}
+    {% set linked_n = replog | selectattr('linked_loan_id') | list | length %}
+    {% if linked_n == 0 %}<tr><td colspan="8" class="muted">No repayments yet.</td></tr>{% endif %}
+    </tbody>
+  </table></div>
+  <p class="muted small">Balances only move when a repayment is <b>explicitly linked</b> to the loan — nothing is auto-assumed.</p>
+</section>
+{% endblock %}

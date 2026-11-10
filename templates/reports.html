@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<header class="pagehead">
+  <h1>Reports</h1>
+  <div class="btnrow">
+    <a class="btn ghost" href="{{ url_for('reports.download_csv', **f) }}">CSV</a>
+    <a class="btn ghost" href="{{ url_for('reports.download_xlsx', **f) }}">Excel</a>
+    <a class="btn ghost" href="{{ url_for('reports.download_pdf', **f) }}">PDF</a>
+    <a class="btn ghost" href="#" onclick="window.print(); return false;">Print / PDF via browser</a>
+  </div>
+</header>
+
+<form class="filters card" method="get" action="{{ url_for('reports.reports_page') }}">
+  <label>Month
+    <select name="month">
+      <option value="all">All</option>
+      {% for i in range(1, 13) %}{% set mm = '%02d' % i %}
+        <option value="{{ ynow }}-{{ mm }}" {% if f.month == ynow + '-' + mm %}selected{% endif %}>
+          {{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i - 1] }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Year
+    <select name="year">
+      <option value="all">All</option>
+      {% for y in years %}<option {% if f.year == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Nature
+    <select name="nature">
+      <option value="">All</option>
+      {% for k, v in NATURES.items() %}
+        <option value="{{ k }}" {% if f.nature == k %}selected{% endif %}>{{ v[1] }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="grow">Search <input name="q" value="{{ f.q }}"></label>
+  <button class="btn" type="submit">Apply</button>
+</form>
+
+<section class="kpi-grid slim">
+  <div class="kpi c-in"><span>Money received</span><b>{{ total_in }}</b></div>
+  <div class="kpi c-out"><span>Money paid</span><b>{{ total_out }}</b></div>
+  <div class="kpi c-net"><span>Net flow</span><b>{{ net }}</b></div>
+  <div class="kpi"><span>Rows</span><b>{{ n }}</b></div>
+</section>
+<p class="muted small">Scope: {{ scope }} · includes only this account’s data.</p>
+
+<section class="card print-hide">
+  <h3>Spending by category</h3>
+  {% for c in cat_bars %}
+    <div class="hbar">
+      <span class="hbar-label">{{ c.name }}</span>
+      <span class="hbar-track"><span class="hbar-fill" style="width: {{ c.pct }}%"></span></span>
+      <span class="hbar-val">{{ c.fmt }}</span>
+    </div>
+  {% endfor %}
+  {% if not cat_bars %}<p class="muted">No expense rows in this selection.</p>{% endif %}
+</section>
+
+<div class="table-scroll"><table class="list report-table">
+  <thead>
+    <tr>{% for c in ['Date','Time','Direction','Nature','Person','Category','Subcategory','Description','Method','UTR','Linked Loan','Amount'] %}
+      <th {% if c == 'Amount' %}class="r"{% endif %}>{{ c }}</th>{% endfor %}</tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="{{ 'sample' if r._sample }}">
+      <td>{{ r.Date }}</td><td>{{ r.Time }}</td><td>{{ r.Direction }}</td><td>{{ r.Nature }}</td>
+      <td>{{ r.Person }}</td><td>{{ r.Category }}</td><td>{{ r.Subcategory }}</td>
+      <td>{{ r.Description }}</td><td>{{ r.Method }}</td><td>{{ r.UTR }}</td>
+      <td>{{ r['Linked Loan'] }}</td>
+      <td class="r {{ 'in' if r.Direction == 'In' else 'out' }}">{{ r.Amount }}</td>
+    </tr>
+  {% endfor %}
+  {% if not rows %}<tr><td colspan="12" class="muted">No rows (page shows the first 300 — downloads include up to 5,000).</td></tr>{% endif %}
+  </tbody>
+</table></div>
+{% endblock %}

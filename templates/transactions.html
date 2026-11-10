@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Transactions{% endblock %}
+{% block content %}
+<header class="pagehead">
+  <h1>Transactions</h1>
+  <a class="btn" href="{{ url_for('transactions.add') }}">+ Add transaction</a>
+</header>
+
+<form class="filters card" method="get" action="{{ url_for('transactions.list') }}">
+  <label>Month
+    <select name="month">
+      <option value="all">All</option>
+      {% for i in range(1, 13) %}{% set mm = '%02d' % i %}
+        <option value="{{ year_now }}-{{ mm }}" {% if f.month == year_now + '-' + mm %}selected{% endif %}>
+          {{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i - 1] }} {{ year_now }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Year
+    <select name="year">
+      <option value="all">All</option>
+      {% for y in years %}<option {% if f.year == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Direction
+    <select name="direction">
+      <option value="">All</option>
+      <option value="in" {% if f.direction == 'in' %}selected{% endif %}>Money in</option>
+      <option value="out" {% if f.direction == 'out' %}selected{% endif %}>Money out</option>
+    </select>
+  </label>
+  <label>Nature
+    <select name="nature">
+      <option value="">All</option>
+      {% for k, v in natures.items() %}
+        <option value="{{ k }}" {% if f.nature == k %}selected{% endif %}>{{ v[1] }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Category
+    <select name="category">
+      <option value="">All</option>
+      {% for c in categories %}<option {% if f.category == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="grow">Search
+    <input name="q" value="{{ f.q }}" placeholder="description, person, UTR…">
+  </label>
+  <button class="btn" type="submit">Apply</button>
+  <a class="btn ghost" href="{{ url_for('reports.reports_page', month=f.month, year=f.year, q=f.q) }}">Reports →</a>
+</form>
+
+<p class="table-hint muted small">Swipe the table to see amounts and details →</p>
+<div class="table-scroll"><table class="list txn-list">
+  <thead>
+    <tr>
+      <th>Date</th><th>Person / Source</th><th>Nature</th>
+      <th>Category</th><th>Description</th><th>Method</th><th>UTR</th>
+      <th class="r">Amount</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for t in txns %}
+    <tr class="{{ 'sample' if t.is_sample }}">
+      <td>{{ ist_fmt_date(t.tx_date) }}{% if t.tx_time %} <span class="muted">{{ t.tx_time }}</span>{% endif %}</td>
+      <td>{{ t.person_name or '—' }}{% if t.is_sample %} <span class="tag" title="Sample row">[SAMPLE]</span>{% endif %}</td>
+      <td><span class="nt nt-{{ 'in' if t.direction == 'in' else 'out' }}">{{ NATURES[t.nature][1] }}</span></td>
+      <td>{{ t.category or '—' }}{% if t.subcategory %} <span class="muted">/ {{ t.subcategory }}</span>{% endif %}</td>
+      <td>{{ t.description or '—' }}</td>
+      <td>{{ t.method or '—' }}</td>
+      <td>{{ t.utr or '—' }}</td>
+      <td class="r {{ 'in' if t.direction == 'in' else 'out' }}">
+        {{ (t.direction == 'in') and '+' or '−' }}{{ money_fmt(t.amount_paise, currency) }}</td>
+      <td><a class="btn ghost sm" href="{{ url_for('transactions.txn_detail', txn_id=t.id) }}">Open</a></td>
+    </tr>
+  {% endfor %}
+  {% if not txns %}
+    <tr><td colspan="9" class="muted">No transactions match these filters.</td></tr>
+  {% else %}
+    <tr class="totals">
+      <td colspan="7">Money In {{ total_in }} · Money Out {{ total_out }} ·
+        Net flow {{ money_fmt(net_total, currency) }}</td>
+      <td colspan="2"></td>
+    </tr>
+  {% endif %}
+  </tbody>
+</table></div>
+{% endblock %}

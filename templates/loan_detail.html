@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Loan #{{ loan.id }}{% endblock %}
+{% block content %}
+<header class="pagehead">
+  <h1>Loan #{{ loan.id }} — {{ 'money I gave' if loan.side == 'given' else 'money I took' }}
+    {% if loan.is_sample %}<span class="tag">[SAMPLE]</span>{% endif %}</h1>
+  <div>
+    <a class="btn ghost" href="{{ url_for('loans.loans') }}">← Register</a>
+  </div>
+</header>
+
+<section class="card detail">
+  <dl class="kv">
+    <dt>Person</dt><dd>{% if loan.person_id %}<a href="{{ url_for('people.person_detail', pid=loan.person_id) }}">{{ loan.person_name }}</a>{% else %}—{% endif %}</dd>
+    <dt>Principal</dt><dd><b>{{ money_fmt(loan.amount_paise, currency) }}</b></dd>
+    <dt>{{ 'Disbursed' if loan.side == 'given' else 'Taken on' }}</dt><dd>{{ ist_fmt_date(loan.disbursed_date) }}</dd>
+    <dt>{{ 'Expected return' if loan.side == 'given' else 'Settle by' }}</dt><dd>{{ ist_fmt_date(loan.due_date) if loan.due_date else '—' }}</dd>
+    {% if loan.interest_pct %}<dt>Interest</dt><dd>{{ '%0.2f' % loan.interest_pct }}% p.a. (informational)</dd>{% endif %}
+    <dt>Repaid so far</dt><dd class="in">{{ money_fmt(loan.repaid_paise, currency) }}</dd>
+    <dt>Outstanding</dt><dd class="{{ 'out' if loan.balance_paise else 'in' }}"><b>{{ money_fmt(loan.balance_paise, currency) }}</b></dd>
+    <dt>Status</dt><dd><span class="st st-{{ loan.status | lower | replace(' ', '-') }}">{{ loan.status }}</span>
+      {% if loan.overdue_days %} · {{ loan.overdue_days }} days overdue{% endif %}</dd>
+    {% if loan.notes %}<dt>Notes</dt><dd>{{ loan.notes }}</dd>{% endif %}
+  </dl>
+  {% if not loan.is_sample %}
+  <form method="post" class="inline" action="{{ url_for('loans.delete_loan', lid=loan.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn danger sm" type="submit">Delete loan</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h3>Record a repayment</h3>
+  <form method="post" action="{{ url_for('loans.repay', lid=loan.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid3">
+      <label>Amount
+        <input name="amount" placeholder="e.g. 500" required>
+      </label>
+      <label>Date
+        <input name="tx_date" placeholder="YYYY-MM-DD" required>
+      </label>
+      <label>Method
+        <select name="method">
+          <option value="">—</option>
+          {% for m in ['UPI','Cash','Bank Transfer','IMPS','NEFT','Card','Cheque'] %}
+            <option>{{ m }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>UTR / reference
+        <input name="utr">
+      </label>
+      <label class="grow">Notes
+        <input name="notes">
+      </label>
+      <label class="chk"><input type="checkbox" name="confirm_link" required>
+        yes — this repayment is for <b>this loan</b></label>
+    </div>
+    <p class="muted small">{{ repayment_label }}: becomes a
+      <b>{{ repayment_nature }}</b> transaction (#linked to loan {{ loan.id }}).
+      Status becomes Partially Repaid / Settled automatically. The repayment can
+      never exceed the outstanding balance of {{ money_fmt(loan.balance_paise, currency) }}.</p>
+    <div class="form-foot"><div class="spacer"></div>
+      <button class="btn" type="submit">Save repayment</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h3>Loan ledger ({{ txns | length }} transaction{{ '' if txns|length == 1 else 's' }})</h3>
+  <div class="table-scroll"><table class="list">
+    <thead><tr><th>Date</th><th>Type</th><th class="r">Amount</th><th>Detail</th><th></th></tr></thead>
+    <tbody>
+    {% for t in txns %}
+      <tr>
+        <td>{{ ist_fmt_date(t.tx_date) }}</td>
+        <td>{{ NATURES[t.nature][1] }}</td>
+        <td class="r {{ 'in' if t.direction == 'in' else 'out' }}">
+          {{ (t.direction == 'in') and '+' or '−' }}{{ money_fmt(t.amount_paise, currency) }}</td>
+        <td>{{ t.description or '—' }}{% if t.utr %} <span class="muted">UTR {{ t.utr }}</span>{% endif %}</td>
+        <td><a class="btn ghost sm" href="{{ url_for('transactions.txn_detail', txn_id=t.id) }}">Open</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

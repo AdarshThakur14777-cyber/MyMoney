@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }}{% endblock %}
+{% block content %}
+<header class="pagehead">
+  <h1>{{ p.name }}{% if p.relationship %} <span class="tag">{{ p.relationship }}</span>{% endif %}</h1>
+  <div>
+    <a class="btn ghost" href="{{ url_for('people.list_people') }}">← People</a>
+    <a class="btn ghost" href="{{ url_for('transactions.add', pid=p.id) }}">+ Txn</a>
+    <a class="btn" href="{{ url_for('people.edit_person', pid=p.id) }}">Edit</a>
+  </div>
+</header>
+<section class="card">
+  <dl class="kv">
+    <dt>Phone</dt><dd>{{ p.phone or '—' }}</dd>
+    <dt>UPI</dt><dd>{{ p.upi_id or '—' }}</dd>
+    <dt>Notes</dt><dd>{{ p.notes or '—' }}</dd>
+    <dt>Added</dt><dd>{{ ist_fmt_ts(p.created_at) }}</dd>
+  </dl>
+</section>
+
+<section class="two-col">
+  <div class="card">
+    <h3>Loans with this person</h3>
+    <div class="table-scroll"><table class="list">
+      <thead><tr><th>Side</th><th>Principal</th><th>Disbursed</th><th>Due</th>
+        <th class="r">Balance</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for l in loans %}
+        <tr><td>{{ 'given' if l.side == 'given' else 'taken' }}</td>
+            <td class="r">{{ money_fmt(l.amount_paise, currency) }}</td>
+            <td>{{ ist_fmt_date(l.disbursed_date) }}</td>
+            <td>{{ ist_fmt_date(l.due_date) if l.due_date else '—' }}</td>
+            <td class="r">{{ money_fmt(l.balance_paise, currency) }}</td>
+            <td><span class="st st-{{ l.status | lower | replace(' ', '-') }}">{{ l.status }}</span></td></tr>
+      {% endfor %}
+      {% if not loans %}<tr><td colspan="6" class="muted">No loans recorded.</td></tr>{% endif %}
+      </tbody>
+    </table></div>
+  </div>
+  <div class="card">
+    <h3>Transactions with this person</h3>
+    <div class="table-scroll"><table class="list">
+      <thead><tr><th>Date</th><th>Nature</th><th class="r">Amount</th></tr></thead>
+      <tbody>
+      {% for t in txns %}
+        <tr><td>{{ ist_fmt_date(t.tx_date) }}</td>
+            <td>{{ NATURES[t.nature][1] }}{% if t.linked_loan_id %} <span class="muted">(loan #{{ t.linked_loan_id }})</span>{% endif %}</td>
+            <td class="r {{ 'in' if t.direction == 'in' else 'out' }}">{{ (t.direction == 'in') and '+' or '−' }}{{ money_fmt(t.amount_paise, currency) }}</td></tr>
+      {% endfor %}
+      {% if not txns %}<tr><td colspan="3" class="muted">No transactions.</td></tr>{% endif %}
+      </tbody>
+    </table></div>
+  </div>
+</section>
+{% endblock %}

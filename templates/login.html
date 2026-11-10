@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<div class="authwrap">
+  <section class="authcard">
+    <h1>Test app</h1>
+    <p class="muted">Personal UPI &amp; transaction manager — sign in to continue.</p>
+    {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+    <form method="post" autocomplete="off">
+      <label>Username
+        <input name="username" value="{{ username or '' }}" required autofocus>
+      </label>
+      <label>Password
+        <input name="password" type="password" required>
+      </label>
+      <button class="btn wide" type="submit">Log in</button>
+    </form>
+    {% if setup_needed %}
+      <p class="muted small">First time? Run <code>python app.py init-user</code> in the project terminal to create your account.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

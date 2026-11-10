@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Transaction {{ t.id }}{% endblock %}
+{% block content %}
+<header class="pagehead">
+  <h1>Transaction #{{ t.id }}
+    {% if t.is_sample %}<span class="tag">[SAMPLE]</span>{% endif %}
+    {% if t.status == 'cancelled' %}<span class="tag danger">cancelled</span>{% endif %}
+  </h1>
+  <div>
+    <a class="btn ghost" href="{{ url_for('transactions.list') }}">← List</a>
+    <a class="btn" href="{{ url_for('transactions.edit', txn_id=t.id) }}">Edit</a>
+  </div>
+</header>
+
+<section class="card detail">
+  <dl class="kv">
+    <dt>Nature</dt><dd><span class="nt nt-{{ t.direction }}">{{ NATURES[t.nature][1] }}</span></dd>
+    <dt>Date</dt><dd>{{ ist_fmt_date(t.tx_date) }}{% if t.tx_time %} · {{ t.tx_time }}{% endif %}</dd>
+    <dt>Amount</dt><dd class="{{ t.direction }}">{{ (t.direction == 'in') and '+' or '−' }}{{ money_fmt(t.amount_paise, currency) }}</dd>
+    <dt>Person / Merchant</dt><dd>{% if t.person_id %}<a href="{{ url_for('people.person_detail', pid=t.person_id) }}">{{ t.person_name }}</a>{% else %}—{% endif %}</dd>
+    <dt>Category</dt><dd>{{ t.category or '—' }}{% if t.subcategory %} / {{ t.subcategory }}{% endif %}</dd>
+    <dt>Method</dt><dd>{{ t.method or '—' }}</dd>
+    <dt>UTR</dt><dd>{{ t.utr or '—' }}</dd>
+    <dt>Description</dt><dd>{{ t.description or '—' }}</dd>
+    <dt>Notes</dt><dd>{{ t.notes or '—' }}</dd>
+    {% if t.linked_loan_id %}
+      <dt>Linked loan</dt><dd>
+        <a href="{{ url_for('loans.loan_detail', lid=t.linked_loan_id) }}">loan #{{ t.linked_loan_id }}</a>
+        — {{ 'lent to' if t.loan_side == 'given' else 'taken from' }}
+        {{ t.loan_person or '?' }} · loan {{ money_fmt(t.loan_amount, currency) }}
+        {% if t.loan_due %}· due {{ ist_fmt_date(t.loan_due) }}{% endif %}</dd>
+    {% endif %}
+    <dt>Recorded</dt><dd>{{ ist_fmt_ts(t.created_at) }} · updated {{ ist_fmt_ts(t.updated_at) }}</dd>
+  </dl>
+</section>
+
+<section class="two-col">
+  <div class="card">
+    <h3>Attachments</h3>
+    {% for a in attachments %}
+      <div class="att">
+        {% if a.mime.startswith('image/') %}
+          <a href="{{ url_for('transactions.attach_download', att_id=a.id) }}" target="_blank">
+            <img class="thumb" src="{{ url_for('transactions.attach_download', att_id=a.id) }}" alt="{{ a.orig_name }}"></a>
+        {% else %}
+          <a class="btn ghost sm" href="{{ url_for('transactions.attach_download', att_id=a.id) }}">{{ a.orig_name }} ({{ a.mime }})</a>
+        {% endif %}
+        <form method="post" class="inline"
+              action="{{ url_for('transactions.attach_delete', att_id=a.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="back" value="{{ request.path }}">
+          <button class="btn ghost sm">remove</button>
+        </form>
+      </div>
+    {% endfor %}
+    {% if not attachments %}<p class="muted">No receipts attached.</p>{% endif %}
+    <form method="post" enctype="multipart/form-data"
+          action="{{ url_for('transactions.attach', txn_id=t.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="file" name="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.gif,.heic" required>
+      <button class="btn sm" type="submit">Attach</button>
+    </form>
+  </div>
+  <div class="card">
+    <h3>Audit history</h3>
+    <ul class="timeline">
+      {% for h in history %}
+        <li>
+          <b>{{ h.action }}</b> · {{ ist_fmt_ts(h.changed_at) }} by {{ h.actor }}
+          {% if h.changes %}
+            <ul class="mini-list">
+            {% for k, v in (h.changes | fromjson) | dictsort %}
+              <li><code>{{ k }}</code>: {{ 'none' if v.old is none else v.old }} → {{ 'none' if v.new is none else v.new }}</li>
+            {% endfor %}
+            </ul>
+          {% endif %}
+          {% if h.note %}<span class="muted">{{ h.note }}</span>{% endif %}
+        </li>
+      {% endfor %}
+      {% if not history %}<li class="muted">No recorded changes yet.</li>{% endif %}
+    </ul>
+    {% if t.status == 'active' %}
+    <form method="post" action="{{ url_for('transactions.cancel', txn_id=t.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn danger sm" type="submit">Cancel transaction</button>
+    </form>
+    {% else %}
+    <form method="post" action="{{ url_for('transactions.restore', txn_id=t.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn sm" type="submit">Restore</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

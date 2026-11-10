@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if p else 'New' }} person{% endblock %}
+{% block content %}
+<header class="pagehead"><h1>{{ 'Edit person' if p else 'Add person' }}</h1></header>
+<form class="card form" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid3">
+    <label>Name <input name="name" value="{{ p.name if p else '' }}" required></label>
+    <label>Phone <input name="phone" value="{{ p.phone or '' if p else '' }}"></label>
+    <label>UPI id <input name="upi_id" value="{{ p.upi_id or '' if p else '' }}"></label>
+    <label>Relationship
+      <select name="relationship">
+        {% for r in ['friend','relative','colleague','merchant','lender','borrower','other'] %}
+          <option {% if p and p.relationship == r %}selected{% endif %}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="grow">Notes <input name="notes" value="{{ p.notes or '' if p else '' }}"></label>
+  </div>
+  <div class="form-foot"><div class="spacer"></div>
+    <a class="btn ghost" href="{{ (url_for('people.person_detail', pid=p.id) if p else url_for('people.list_people')) }}">Discard</a>
+    <button class="btn" type="submit">Save person</button>
+  </div>
+</form>
+{% endblock %}

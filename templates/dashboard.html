@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<header class="dash-hero">
+  <div class="hero-copy">
+    <span class="eyebrow"><span class="live-dot"></span> YOUR FINANCIAL OVERVIEW</span>
+    <h1>Know where your money goes.</h1>
+    <p>Track your cash flow, stay on top of lending, and make every rupee count.</p>
+    <div class="hero-actions">
+      <a class="btn hero-btn" href="{{ url_for('transactions.add') }}">{{ icon('plus') }} Add transaction</a>
+      <a class="hero-link" href="{{ url_for('reports.reports_page') }}">Explore reports <span aria-hidden="true">↗</span></a>
+    </div>
+  </div>
+  <div class="hero-mark" aria-hidden="true"><span>₹</span></div>
+</header>
+
+<div class="dash-head">
+  <div class="period-title"><span class="section-kicker">PERFORMANCE</span><h2>Your numbers</h2></div>
+  <div class="dash-period">
+    <span class="muted small">{{ span }} · {{ kpis.n }} transaction{{ '' if kpis.n == 1 else 's' }}
+      {%- if samples and settings.include_sample %} · {{ samples }} sample rows{% endif %}</span>
+    <nav class="rangechips" aria-label="Time range">
+      {% for r in ['1m', '3m', '1y', 'all'] %}
+        <a class="rchip {{ 'on' if rng == r }}" {% if rng == r %}aria-current="page"{% endif %}
+           href="{{ url_for('dashboard.home', range=r) }}">{{ {'1m': '1M',
+           '3m': '3M', '1y': '1Y', 'all': 'All'}[r] }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+</div>
+
+<section class="kpi-row">
+  <div class="kpi primary">
+    <span class="klabel">Net cash flow <span class="kpi-glyph" aria-hidden="true">↗</span></span>
+    <b class="kval">{{ kpis.net }}</b>
+    <small class="kdelta {{ 'up' if kpis.d_net.startswith('↑') else ('down' if kpis.d_net.startswith('↓') else '') }}">{{ kpis.d_net }}</small>
+  </div>
+  <div class="kpi">
+    <span class="klabel">Money received <span class="kpi-glyph" aria-hidden="true">↓</span></span>
+    <b class="kval c-in">{{ kpis.recv }}</b>
+    <small class="kdelta {{ 'up' if kpis.d_recv.startswith('↑') else ('down' if kpis.d_recv.startswith('↓') else '') }}">{{ kpis.d_recv }}</small>
+  </div>
+  <div class="kpi">
+    <span class="klabel">Money paid <span class="kpi-glyph" aria-hidden="true">↑</span></span>
+    <b class="kval c-out">{{ kpis.paid }}</b>
+    <small class="kdelta {{ 'down' if kpis.d_paid.startswith('↑') else ('up' if kpis.d_paid.startswith('↓') else '') }}">{{ kpis.d_paid }}</small>
+  </div>
+  <div class="kpi">
+    <span class="klabel">Savings rate <span class="kpi-glyph" aria-hidden="true">◌</span></span>
+    <b class="kval c-sav">{{ kpis.saving }}%</b>
+    <small class="kdelta">{{ kpis.d_saving }} · target 30%</small>
+  </div>
+</section>
+
+<section class="quick-entry" aria-label="Quick entry">
+  <div><span class="section-kicker">QUICK ENTRY</span><h2>Capture it while it’s fresh</h2></div>
+  <div class="quick-links">
+    <a href="{{ url_for('transactions.add', nature='expense') }}"><span aria-hidden="true">↗</span> Expense</a>
+    <a href="{{ url_for('transactions.add', nature='other_income') }}"><span aria-hidden="true">↙</span> Income</a>
+    <a href="{{ url_for('loans.add_loan') }}"><span aria-hidden="true">⇄</span> Loan</a>
+  </div>
+</section>
+
+<section class="dash-grid">
+  <figure class="card chartcard">
+    <figcaption class="ctitle">
+      <div>
+        <h3>Cash Flow Overview</h3>
+        <p class="muted small">Income vs expenses — the last 6 months</p>
+      </div>
+      <div class="legend">
+        <span><i class="ldot ldot-in"></i>Income</span>
+        <span><i class="ldot ldot-exp"></i>Expenses</span>
+      </div>
+    </figcaption>
+    <div class="chart" id="chart-monthly" data-series="{{ series_json }}"></div>
+  </figure>
+
+  <figure class="card chartcard">
+    <figcaption class="ctitle">
+      <div>
+        <h3>Spending</h3>
+        <p class="muted small">By category · {{ span }}</p>
+      </div>
+    </figcaption>
+    <div class="chart donut" id="chart-cats" data-cats="{{ cats_json }}"></div>
+  </figure>
+</section>
+
+<section class="card budget-overview">
+  <h3 class="rowtitle">This month’s budgets
+    <a class="more" href="{{ url_for('settings.settings_page') }}">Manage budgets →</a></h3>
+  {% if budgets %}
+  <div class="budget-grid">
+    {% for b in budgets %}
+    <div class="budget-item">
+      <div class="gline"><b>{{ b.category }}</b>
+        <span class="budget-state {{ b.status }}">{{ ('Limit reached' if b.pct == 100 else 'Over budget') if b.status == 'over' else ('Near limit' if b.status == 'near' else 'On track') }}</span></div>
+      <div class="budget-amount"><strong>{{ b.spent_txt }}</strong><span>of {{ b.limit_txt }}</span></div>
+      <div class="meter"><span class="fill {{ 'late' if b.status == 'over' else ('soon' if b.status == 'near' else 'ok') }}"
+           style="width: {{ b.bar_pct }}%"></span></div>
+      <small class="muted">{{ b.pct }}% used{% if b.status != 'over' %} · {{ b.remaining_txt }} left{% endif %}</small>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted small">Set a category limit in Settings to see spending progress and alerts here.</p>
+  {% endif %}
+</section>
+
+<section class="dash-grid equal">
+  <div class="card">
+    <h3 class="rowtitle">Recent transactions
+      <a class="more" href="{{ url_for('transactions.list') }}">View all →</a></h3>
+    <ul class="recent">
+      {% for t in recent %}
+      <li>
+        <span class="riconic {{ 'in' if t.direction == 'in' else 'out' }}"
+              title="{{ NATURES[t.nature][1] }}">{{ NATURE_ICONS[t.nature] }}</span>
+        <div class="rmeta">
+          <b>{{ t.person_name or t.description or NATURES[t.nature][1] }}</b>
+          <small>{{ ist_fmt_date(t.tx_date) }}{% if t.tx_time %} · {{ t.tx_time }}{% endif %}
+            {%- if t.is_sample %} · <span class="tag">[SAMPLE]</span>{% endif %}</small>
+        </div>
+        <span class="catpill">{{ t.category or NATURES[t.nature][1] }}</span>
+        <span class="amt {{ 'pos' if t.direction == 'in' else 'neg' }}">
+          {{ '+' if t.direction == 'in' else '−' }}{{ money_fmt(t.amount_paise, currency) }}</span>
+      </li>
+      {% else %}
+      <li class="muted">Nothing yet — <a href="{{ url_for('transactions.add') }}">add your first transaction</a>.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3 class="rowtitle">Loans &amp; recovery
+      <a class="more" href="{{ url_for('loans.add_loan') }}">+ New loan</a></h3>
+    <ul class="goals">
+      {% for g in goals %}
+      <li>
+        <div class="gline">
+          <b>{{ '🤝' if g.side == 'given' else '🏦' }} {{ g.name }}
+            {%- if g.is_sample %} <span class="tag">[SAMPLE]</span>{% endif %}</b>
+          <span class="gamt">{{ g.repaid_txt }} / {{ g.total_txt }}</span>
+        </div>
+        <div class="meter"><span class="fill {{ g.cls }}"
+             style="width: {{ g.pct }}%"></span></div>
+        <small class="gsub">{{ g.pct }}% complete · Est. {{ g.due_txt }}</small>
+      </li>
+      {% else %}
+      <li class="muted">No open loans — everything settled. 🎉</li>
+      {% endfor %}
+    </ul>
+    {% if goals %}
+    <p class="gfoot muted small">Lent out <b>{{ lent_txt }}</b> · borrowed
+      <b>{{ borr_txt }}</b> ·
+      <a href="{{ url_for('loans.reminders') }}">Reminders:</a>
+      {% if overdue_n %}<span class="danger">{{ overdue_n }} overdue</span>{% endif %}
+      {% if due_soon_n %}{{ ', ' if overdue_n }}<span class="warn">{{ due_soon_n }} due soon</span>{% endif %}
+      {% if not overdue_n and not due_soon_n %}all clear ✅{% endif %}</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

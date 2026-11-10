@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Add loan{% endblock %}
+{% block content %}
+<header class="pagehead"><h1>Add loan</h1></header>
+<form class="card form" method="post" action="{{ url_for('loans.add_loan') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid3">
+    <label>Direction
+      <select name="side" required>
+        <option value="given">I gave money (lent)</option>
+        <option value="taken">I took money (borrowed)</option>
+      </select>
+    </label>
+    <label>Principal amount
+      <input name="amount" placeholder="e.g. 2,500" required>
+    </label>
+    <label>Disbursement date
+      <input name="disbursed_date" placeholder="YYYY-MM-DD" required>
+    </label>
+    <label>Due / settle-by date
+      <input name="due_date" placeholder="YYYY-MM-DD (optional)">
+    </label>
+    <label>Person
+      <select name="person_id" required>
+        <option value="">— choose —</option>
+        {% for p in people %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Interest % <small>(optional, informational)</small>
+      <input name="interest_pct" placeholder="0">
+    </label>
+    <label class="grow">Notes
+      <textarea name="notes" rows="2"></textarea>
+    </label>
+    <label>Link an existing disbursement txn
+      <select name="first_txn_id">
+        <option value="">— auto-record new txn *(recommended)* —</option>
+        {% for t in existing %}
+          <option value="{{ t.id }}">txn #{{ t.id }} · {{ t.tx_date }} ·
+            {{ money_fmt(t.amount_paise, current_user()['currency']) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="chk"><input type="checkbox" name="record_disbursement" checked>
+      also record the disbursement transaction</label>
+    <label>Method (for auto txn)
+      <select name="disb_method">
+        <option value="">—</option>
+        {% for m in ['UPI','Cash','Bank Transfer','IMPS','NEFT','Card','Cheque'] %}
+          <option>{{ m }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <p class="muted small">A loan always has exactly one disbursement transaction
+  (recorded here or linked to an existing one) — the ledger never double-counts
+  the principal. Repayments are added later from the loan page.</p>
+  <div class="form-foot"><div class="spacer"></div>
+    <a class="btn ghost" href="{{ url_for('loans.loans') }}">Discard</a>
+    <button class="btn" type="submit">Save loan</button>
+  </div>
+</form>
+{% endblock %}
